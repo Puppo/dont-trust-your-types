@@ -1,0 +1,6 @@
+{
+  "testFileMatch": [
+    "test/**/*.tst.ts"
+  ],
+  "target": "6.0"
+}
