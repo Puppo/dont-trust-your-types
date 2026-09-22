@@ -136,13 +136,28 @@ test('the Zod route accepts a handler that returns reply.code(201).send(...)', (
   // which exercises both the async return and the imperative reply.send() form.
   // Extract a typed handler so parameter types are inferred from the schema.
   type Handler = ZodRouteDefinition<OrganizationSchema>['handler']
+
+  // Declare the response body as a typed const so each property below can
+  // assert something concrete about it.
+  const responseBody = {
+    id: 'acme',
+    name: 'Acme',
+    memberCount: 0,
+    created: true,
+  }
+
+  // 1. The body literal matches the declared 201 response schema.
+  expect(responseBody).type.toBeAssignableTo<z.input<typeof organizationSchemas.response>>()
+
+  // 2. reply.code(201).send is callable with the body shape.
+  expect(reply.code(201).send).type.toBeCallableWith(responseBody)
+
+  // 3. The handler's awaited return type resolves to the response body or
+  // void — i.e. the value returned by reply.code(201).send(...) (which is a
+  // FastifyReply) is accepted by the handler return type union.
   const handler: Handler = async (_request, reply) =>
-    reply.code(201).send({
-      id: 'acme',
-      name: 'Acme',
-      memberCount: 0,
-      created: true,
-    })
+    reply.code(201).send(responseBody)
+  expect<Awaited<ReturnType<typeof handler>>>().type.toBeAssignableTo<typeof responseBody | void>()
 
   expect(route).type.toBeCallableWith({
     method: 'POST',
