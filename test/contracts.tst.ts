@@ -21,6 +21,9 @@ type ExpectedDefinition = Omit<
 > & { handler: RouteHandler<OrganizationRoute> }
 const organizationRoute = contractRoute<OrganizationRoute>
 
+type OrganizationRequest = Parameters<RouteHandler<OrganizationRoute>>[0]
+declare const organizationRequest: OrganizationRequest
+
 test('RouteDefinition preserves its generic', () => {
   // Fails if RouteDefinition<T> is accidentally changed to use `any`.
   expect<RouteDefinition<OrganizationRoute>>().type.toBe<ExpectedDefinition>()
@@ -67,27 +70,11 @@ test('an async handler returning the Reply is accepted', () => {
 
 test('a realistic handler body type-checks every request access', () => {
   // Each access inside the handler body must resolve to the declared
-  // contract type. If any field is mis-typed, this test fails to compile.
-  // Extract a typed handler so parameter types are inferred from the contract.
-  type Handler = RouteHandler<OrganizationRoute>
-  const handler: Handler = async (request) => {
-    const orgId: string = request.params.organizationId
-    const include: 'members' | 'projects' | undefined = request.query.include
-    const name: string = request.body.name
-    const traceId: string = request.headers['x-trace-id']
-    return {
-      id: orgId,
-      name: include === 'members' ? `${name} and friends` : name,
-      // Reference traceId so the variable is used.
-      ...(traceId.length > 0 ? {} : {}),
-    }
-  }
-
-  expect(organizationRoute).type.toBeCallableWith({
-    method: 'GET',
-    url: '/organizations/:organizationId',
-    handler,
-  })
+  // contract type. If any field is mis-typed, the assertion fails.
+  expect(organizationRequest.params.organizationId).type.toBe<string>()
+  expect(organizationRequest.query.include).type.toBe<'members' | 'projects' | undefined>()
+  expect(organizationRequest.body.name).type.toBe<string>()
+  expect(organizationRequest.headers['x-trace-id']).type.toBeAssignableTo<string>()
 })
 
 test('the Zod route factory rejects an invalid reply', () => {
