@@ -1,15 +1,7 @@
-import type {
-  FastifySchema,
-  RawReplyDefaultExpression,
-  RawRequestDefaultExpression,
-  RawServerDefault,
-  RouteGenericInterface,
-  RouteOptions,
-} from 'fastify'
-import { type ZodTypeProvider } from 'fastify-type-provider-zod'
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { expect, test } from 'tstyche'
 import { z } from 'zod/v4'
-import { type ZodRouteDefinition } from '../src/index.js'
+import { type ZodRouteDefinition, route } from '../src/index.js'
 
 const organizationSchemas = {
   params: z.object({
@@ -89,4 +81,42 @@ test('route applies Zod inference to the Fastify handler', () => {
     memberCount: 2,
     created: true
   })
+})
+
+test('the Zod route factory rejects an invalid reply', () => {
+  expect(route).type.not.toBeCallableWith({
+    method: 'POST',
+    url: '/organizations/:organizationId',
+    schema: {
+      params: organizationSchemas.params,
+      querystring: organizationSchemas.querystring,
+      body: organizationSchemas.body,
+      response: { 201: organizationSchemas.response },
+    },
+    handler: async () => ({
+      id: 'acme',
+      name: 'Acme',
+      memberCount: 2,
+      // `created` is declared as boolean in the response schema.
+      created: 'not-a-boolean',
+    }),
+  })
+})
+
+test('only declared status codes are accepted on reply.code(...)', () => {
+  // reply.code() only accepts the status code keys declared in the
+  // response schema (here, only 201).
+  expect<Parameters<typeof reply.code>[0]>().type.toBe<201>()
+
+  // The declared status code accepts its matching response shape.
+  expect(reply.code(201).send).type.toBeCallableWith({
+    id: 'acme',
+    name: 'Acme',
+    memberCount: 2,
+    created: true,
+  })
+})
+
+test('route(...) returns a FastifyPluginAsyncZod', () => {
+  expect<ReturnType<typeof route>>().type.toBe<FastifyPluginAsyncZod>()
 })

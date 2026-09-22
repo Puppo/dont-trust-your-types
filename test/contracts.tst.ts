@@ -1,6 +1,8 @@
 import { expect, test } from 'tstyche'
+import { z } from 'zod/v4'
 import {
   contractRoute,
+  route,
   type FastifyRouteOptions,
   type RouteDefinition,
   type RouteHandler,
@@ -35,6 +37,17 @@ test('a bound route factory rejects an invalid reply', () => {
   expect(organizationRoute).type.not.toBeCallableWith({
     method: 'GET',
     url: '/organizations/:organizationId',
+    handler: async () => ({ id: 42, name: 'Acme' }),
+  })
+})
+
+test('the Zod route factory rejects an invalid reply', () => {
+  expect(route).type.not.toBeCallableWith({
+    method: 'POST',
+    url: '/organizations',
+    schema: {
+      response: { 201: z.object({ id: z.string(), name: z.string() }) },
+    },
     handler: async () => ({ id: 42, name: 'Acme' }),
   })
 })
