@@ -157,6 +157,41 @@ test('the Zod route accepts a handler that returns reply.code(201).send(...)', (
   })
 })
 
+test('a realistic Zod handler body type-checks every request and reply access', () => {
+  // Each access inside the handler body must resolve to the type
+  // inferred from the Zod schemas. If any field is mis-typed, this
+  // test fails to compile.
+  type Handler = ZodRouteDefinition<OrganizationSchema>['handler']
+  const handler: Handler = async (request, reply) => {
+    const { organizationId } = request.params
+    const { dryRun } = request.query
+    const { name, members } = request.body
+    const traceId: string = request.headers['x-trace-id']
+
+    return reply.code(201).send({
+      id: organizationId,
+      name,
+      memberCount: members.length,
+      created: !dryRun,
+      // Reference traceId so it is observed by the type checker.
+      ...(traceId.length > 0 ? {} : {}),
+    })
+  }
+
+  expect(route).type.toBeCallableWith({
+    method: 'POST',
+    url: '/organizations/:organizationId',
+    schema: {
+      params: organizationSchemas.params,
+      querystring: organizationSchemas.querystring,
+      body: organizationSchemas.body,
+      headers: organizationSchemas.headers,
+      response: { 201: organizationSchemas.response },
+    },
+    handler,
+  })
+})
+
 test('route(...) returns a FastifyPluginAsyncZod', () => {
   expect<ReturnType<typeof route>>().type.toBe<FastifyPluginAsyncZod>()
 })

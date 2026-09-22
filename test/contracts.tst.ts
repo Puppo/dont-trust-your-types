@@ -65,6 +65,31 @@ test('an async handler returning the Reply is accepted', () => {
   })
 })
 
+test('a realistic handler body type-checks every request access', () => {
+  // Each access inside the handler body must resolve to the declared
+  // contract type. If any field is mis-typed, this test fails to compile.
+  // Extract a typed handler so parameter types are inferred from the contract.
+  type Handler = RouteHandler<OrganizationRoute>
+  const handler: Handler = async (request) => {
+    const orgId: string = request.params.organizationId
+    const include: 'members' | 'projects' | undefined = request.query.include
+    const name: string = request.body.name
+    const traceId: string = request.headers['x-trace-id']
+    return {
+      id: orgId,
+      name: include === 'members' ? `${name} and friends` : name,
+      // Reference traceId so the variable is used.
+      ...(traceId.length > 0 ? {} : {}),
+    }
+  }
+
+  expect(organizationRoute).type.toBeCallableWith({
+    method: 'GET',
+    url: '/organizations/:organizationId',
+    handler,
+  })
+})
+
 test('the Zod route factory rejects an invalid reply', () => {
   expect(route).type.not.toBeCallableWith({
     method: 'POST',
