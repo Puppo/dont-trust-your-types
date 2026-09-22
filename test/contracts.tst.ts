@@ -11,6 +11,8 @@ import {
 type OrganizationRoute = {
   Params: { organizationId: string };
   Querystring: { include?: 'members' | 'projects' };
+  Body: { name: string };
+  Headers: { 'x-trace-id': string };
   Reply: { id: string; name: string };
 }
 type ExpectedDefinition = Omit<
@@ -33,11 +35,33 @@ test('request inference remains part of the contract', () => {
   }>()
 })
 
+test('request body is inferred from the contract', () => {
+  expect<Parameters<RouteHandler<OrganizationRoute>>[0]['body']>().type.toBe<{
+    name: string;
+  }>()
+})
+
+test('request headers are inferred from the contract', () => {
+  // Fastify intersects declared Headers with IncomingHttpHeaders, so we
+  // assert assignability rather than equality.
+  expect<Parameters<RouteHandler<OrganizationRoute>>[0]['headers']>().type.toBeAssignableTo<{
+    'x-trace-id': string;
+  }>()
+})
+
 test('a bound route factory rejects an invalid reply', () => {
   expect(organizationRoute).type.not.toBeCallableWith({
     method: 'GET',
     url: '/organizations/:organizationId',
     handler: async () => ({ id: 42, name: 'Acme' }),
+  })
+})
+
+test('an async handler returning the Reply is accepted', () => {
+  expect(organizationRoute).type.toBeCallableWith({
+    method: 'GET',
+    url: '/organizations/:organizationId',
+    handler: async () => ({ id: 'acme', name: 'Acme' }),
   })
 })
 

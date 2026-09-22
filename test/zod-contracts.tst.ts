@@ -17,6 +17,9 @@ const organizationSchemas = {
     name: z.string().min(1),
     members: z.array(z.string()).default([]),
   }),
+  headers: z.object({
+    'x-trace-id': z.string(),
+  }),
   response: z.object({
     id: z.string(),
     name: z.string(),
@@ -29,6 +32,7 @@ type OrganizationSchema = {
   params: typeof organizationSchemas.params
   querystring: typeof organizationSchemas.querystring
   body: typeof organizationSchemas.body
+  headers: typeof organizationSchemas.headers
   response: { 201: typeof organizationSchemas.response }
 }
 
@@ -83,6 +87,14 @@ test('route applies Zod inference to the Fastify handler', () => {
   })
 })
 
+test('headers are inferred from the Zod schema', () => {
+  // Fastify intersects declared Headers with IncomingHttpHeaders, so we
+  // assert assignability rather than equality.
+  expect<OrganizationRequest['headers']>().type.toBeAssignableTo<{
+    'x-trace-id': string
+  }>()
+})
+
 test('the Zod route factory rejects an invalid reply', () => {
   expect(route).type.not.toBeCallableWith({
     method: 'POST',
@@ -114,6 +126,34 @@ test('only declared status codes are accepted on reply.code(...)', () => {
     name: 'Acme',
     memberCount: 2,
     created: true,
+  })
+})
+
+test('the Zod route accepts a handler that returns reply.code(201).send(...)', () => {
+  // The handler can be written as
+  //   async (request, reply) => reply.code(201).send({...})
+  // which exercises both the async return and the imperative reply.send() form.
+  // Extract a typed handler so parameter types are inferred from the schema.
+  type Handler = ZodRouteDefinition<OrganizationSchema>['handler']
+  const handler: Handler = async (_request, reply) =>
+    reply.code(201).send({
+      id: 'acme',
+      name: 'Acme',
+      memberCount: 0,
+      created: true,
+    })
+
+  expect(route).type.toBeCallableWith({
+    method: 'POST',
+    url: '/organizations/:organizationId',
+    schema: {
+      params: organizationSchemas.params,
+      querystring: organizationSchemas.querystring,
+      body: organizationSchemas.body,
+      headers: organizationSchemas.headers,
+      response: { 201: organizationSchemas.response },
+    },
+    handler,
   })
 })
 
