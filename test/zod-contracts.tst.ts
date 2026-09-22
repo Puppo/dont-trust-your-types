@@ -1,7 +1,37 @@
+import type {
+  FastifySchema,
+  RawReplyDefaultExpression,
+  RawRequestDefaultExpression,
+  RawServerDefault,
+  RouteGenericInterface,
+  RouteOptions,
+} from 'fastify'
+import { type ZodTypeProvider } from 'fastify-type-provider-zod'
 import { expect, test } from 'tstyche'
 import { z } from 'zod/v4'
-import { organizationSchemas } from '../examples/zod-organizations.js'
 import { type ZodRouteDefinition } from '../src/index.js'
+
+const organizationSchemas = {
+  params: z.object({
+    organizationId: z.string().min(1),
+  }),
+  querystring: z.object({
+    dryRun: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+  }),
+  body: z.object({
+    name: z.string().min(1),
+    members: z.array(z.string()).default([]),
+  }),
+  response: z.object({
+    id: z.string(),
+    name: z.string(),
+    memberCount: z.number().int().nonnegative(),
+    created: z.boolean(),
+  }),
+}
 
 type OrganizationSchema = {
   params: typeof organizationSchemas.params
