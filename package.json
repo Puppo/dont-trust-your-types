@@ -22,7 +22,7 @@
     "lint:fix": "eslint . --fix",
     "test": "tsx --test test/runtime.test.ts",
     "test:types": "tstyche",
-    "test:types:compat": "tstyche --target '>=5.4 <7.0'"
+    "test:types:all": "tstyche --target '>=5.4 <7.0'"
   },
   "keywords": [
     "fastify",
